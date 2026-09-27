@@ -1,110 +1,279 @@
-# IoT-Enabled Obstacle Detection and Avoidance Robot 🚗📡  
-**Design and Implementation Using ESP32 + MQTT Cloud Monitoring**
+# ESP32 IoT Obstacle-Avoidance Robot
 
-## 📌 Overview
-This project demonstrates an indoor autonomous obstacle avoidance robot that combines:
-- **Local real-time decision making** (fast navigation logic)
-- **Cloud-based telemetry monitoring** using **MQTT over Wi-Fi**
+**A Wokwi-simulated ESP32 robotics prototype that combines multi-direction obstacle sensing, rule-based motion decisions, and MQTT telemetry.**
 
-It is designed to be **low-cost, modular, and suitable for constrained indoor environments** such as labs, warehouses, smart campuses, and industrial facilities.
+[Open Wokwi Simulation](https://wokwi.com/projects/451565989824641025) · [GitHub Profile](https://github.com/Leroy-laboe) · [LinkedIn](https://www.linkedin.com/in/leroy-nyasha-mangwarara-86185a302/)
 
-## 🎯 Problem Statement
-Traditional obstacle avoidance robots rely only on local sensing and control, which limits:
-- remote feedback
-- diagnostics
-- system visibility and scalability
+> **Simulation note:** this repository demonstrates the control logic in Wokwi. The IR sensors are represented by slide switches and the robot's motion outputs are represented by LEDs rather than physical motors.
 
-This project solves that by enabling **autonomous navigation + real-time telemetry monitoring** without sacrificing local performance.
+---
 
-## ✅ Objectives
-- Design an obstacle avoidance robot using **ESP32**
-- Integrate **Ultrasonic (HC-SR04)** and **IR sensors** for multi-direction sensing
-- Implement **rule-based navigation logic**
-- Publish real-time telemetry via **MQTT**
-- Demonstrate the system using **Wokwi simulation + MQTT Explorer**
+## Overview
 
-## 🧩 Hardware & Tools
-### Hardware (Simulated in Wokwi)
-- ESP32 DevKit v4
-- Ultrasonic Sensor (HC-SR04)
-- Five IR sensors *(simulated using slide switches)*
-- LEDs *(simulate motor directions)*
-- Buzzer *(turning/reversing alert)*
+The project models an indoor obstacle-avoidance robot around an **ESP32 DevKit v4**.
 
-### Software / Platforms
-- Arduino IDE
-- Wokwi Simulation
-- MQTT Protocol
-- MQTT Explorer
+The ESP32 continuously reads:
 
-## 🧠 System Architecture
-The system follows a layered design:
+- one HC-SR04 ultrasonic distance sensor;
+- five directional obstacle inputs;
+- Wi-Fi signal strength.
 
-1. **Sensor Layer**: Ultrasonic + IR sensors  
-2. **Processing Layer**: ESP32 microcontroller  
-3. **Decision Layer**: Rule-based obstacle avoidance logic  
-4. **Actuation Layer**: LEDs + buzzer (motor simulation)  
-5. **Communication Layer**: Wi-Fi + MQTT cloud telemetry  
+It then applies a rule-based decision system to choose one of four movement states:
 
-## 🔌 ESP32 Pin Mapping
-| Component | Signal | ESP32 Pin | Purpose |
-|----------|--------|----------|---------|
-| Ultrasonic Sensor | TRIG | GPIO 5 | Trigger distance measurement |
-| Ultrasonic Sensor | ECHO | GPIO 18 | Receive echo pulse |
-| IR Sensor 1 (Left) | OUT | GPIO 32 | Left obstacle detection |
-| IR Sensor 2 (Left-Center) | OUT | GPIO 33 | Left-center obstacle detection |
-| IR Sensor 3 (Center) | OUT | GPIO 34 | Front obstacle detection |
-| IR Sensor 4 (Right-Center) | OUT | GPIO 35 | Right-center obstacle detection |
-| IR Sensor 5 (Right) | OUT | GPIO 39 (VN) | Right obstacle detection |
-| Forward LED | Anode | GPIO 25 | Forward indication |
-| Left LED | Anode | GPIO 27 | Left indication |
-| Right LED | Anode | GPIO 14 | Right indication |
-| Reverse LED | Anode | GPIO 26 | Reverse indication |
-| Buzzer | Signal | GPIO 4 | Audible alert |
-| Wi-Fi Status LED | Anode | GPIO 2 | Network status |
+- move forward;
+- turn left;
+- turn right;
+- reverse.
 
-## 🤖 Navigation Logic (Rule-Based)
-The robot continuously evaluates sensor inputs:
+The selected state is reflected through LEDs and a buzzer in the simulation, while telemetry is published over MQTT as JSON.
 
-- ✅ No obstacle → **Move Forward**
-- ✅ Left obstacle → **Turn Right**
-- ✅ Right obstacle → **Turn Left**
-- ✅ Obstacles on all sides → **Reverse**
-- 🔊 Buzzer activates during **turning and reversing**
+---
 
-## ☁️ MQTT Cloud Telemetry
-### Why MQTT?
-MQTT was chosen over HTTP due to:
-- lightweight publish/subscribe model
-- low bandwidth usage
-- minimal latency
-- excellent fit for IoT devices
+## System Flow
 
-### Broker + Topic
-- Broker: `test.mosquitto.org`
-- Topic: `robots/leroy/telemetry`
+```text
+HC-SR04 + 5 obstacle inputs
+             │
+             ▼
+         ESP32 loop
+             │
+             ▼
+   Evaluate blocked regions
+             │
+             ▼
+     Navigation decision
+             │
+      ┌──────┼───────┐
+      ▼      ▼       ▼
+  Forward   Turn   Reverse
+      │      │       │
+      └──────┴───────┘
+             │
+             ▼
+ LEDs + buzzer simulation
+             │
+             ▼
+      JSON MQTT telemetry
+             │
+             ▼
+     test.mosquitto.org
+```
 
-Telemetry is published in **JSON format** for easy visualization using MQTT Explorer.
+The decision cycle runs approximately every **200 ms**.
 
-## 🧪 Simulation
-This project was simulated in **Wokwi** to validate functionality without physical hardware.
+---
 
-📌 Wokwi Link: **(ADD YOUR LINK HERE)**
+## Navigation Logic
 
-## ⚠️ Limitations
-- Motors are simulated using LEDs (no motor driver hardware)
-- IR sensors are abstracted using switches for controlled testing
-- Camera vision / GPS not included (indoor use case focus)
+The firmware groups the sensor inputs into three logical regions:
 
-## 🚀 Future Improvements
-- Add real DC motors + motor driver
-- Bluetooth manual control mode
-- Web dashboard (Node-RED)
-- GPS support for outdoor navigation
-- TLS encryption + MQTT authentication
+- **front** — ultrasonic distance or centre obstacle input;
+- **left** — far-left or left input;
+- **right** — right or far-right input.
 
-## 📚 References
-- Banks, A., & Gupta, R. (2014). *MQTT Version 3.1.1. OASIS Standard.*
-- Espressif Systems. (2023). *ESP32 Series Datasheet.*
-- Wokwi. (2024). *Wokwi Arduino and ESP32 Simulator.*
-- MQTT.org. (2024). *MQTT Essentials.*
+The obstacle threshold for the ultrasonic sensor is **20 cm**.
+
+| Sensor Condition | Robot State |
+| --- | --- |
+| Path clear | Move forward |
+| Front + left blocked | Turn right |
+| Front + right blocked | Turn left |
+| Front blocked, sides clear | Turn left |
+| Left blocked | Turn right |
+| Right blocked | Turn left |
+| Front + left + right blocked | Reverse |
+
+The buzzer is activated while turning or reversing.
+
+---
+
+## Hardware Represented in Wokwi
+
+| Component | Simulation Role |
+| --- | --- |
+| ESP32 DevKit v4 | Main controller |
+| HC-SR04 | Front distance sensing |
+| 5 slide switches | Directional IR-sensor simulation |
+| 4 LEDs | Forward / left / right / reverse motion outputs |
+| 1 LED | Wi-Fi connection status |
+| Buzzer | Turn / reverse alert |
+
+The simulation intentionally abstracts the motor driver and physical drivetrain so the project can focus on sensing, decision logic, and IoT telemetry.
+
+---
+
+## ESP32 Pin Mapping
+
+| Component | Signal | ESP32 Pin |
+| --- | --- | ---: |
+| HC-SR04 | TRIG | GPIO 5 |
+| HC-SR04 | ECHO | GPIO 18 |
+| Far-left obstacle input | OUT | GPIO 32 |
+| Left obstacle input | OUT | GPIO 33 |
+| Centre obstacle input | OUT | GPIO 34 |
+| Right obstacle input | OUT | GPIO 35 |
+| Far-right obstacle input | OUT | GPIO 39 / VN |
+| Forward LED | Output | GPIO 25 |
+| Left LED | Output | GPIO 27 |
+| Right LED | Output | GPIO 14 |
+| Reverse LED | Output | GPIO 26 |
+| Buzzer | Output | GPIO 4 |
+| Wi-Fi status LED | Output | GPIO 2 |
+
+---
+
+## MQTT Telemetry
+
+The project publishes telemetry to a public MQTT broker for demonstration.
+
+| Setting | Value |
+| --- | --- |
+| Broker | `test.mosquitto.org` |
+| Port | `1883` |
+| Topic | `robots/leroy/telemetry` |
+| Format | JSON |
+
+Example payload:
+
+```json
+{
+  "id": "leroy",
+  "ts": 12345,
+  "ultra_cm": 30,
+  "ir": [0, 0, 1, 0, 0],
+  "state": "LEFT",
+  "rssi": -65
+}
+```
+
+### Payload fields
+
+- `id` — robot identifier;
+- `ts` — ESP32 uptime in milliseconds;
+- `ultra_cm` — ultrasonic distance in centimetres;
+- `ir` — five directional obstacle states;
+- `state` — current navigation state;
+- `rssi` — Wi-Fi signal strength.
+
+The firmware also uses a non-blocking MQTT reconnection interval so a broker outage does not stop the navigation decision loop.
+
+> **Security note:** `test.mosquitto.org` is a public broker and port 1883 is unencrypted. It is appropriate for a classroom/demo simulation, not for production telemetry or sensitive data.
+
+---
+
+## Firmware Structure
+
+The Arduino sketch is organised around a small finite-state control model:
+
+```text
+STOP
+MOVE_FORWARD
+TURN_LEFT
+TURN_RIGHT
+REVERSE
+```
+
+Core functions include:
+
+- `readUltrasonicCM()` — measures front distance;
+- `applyState()` — applies the selected robot state;
+- `setMotionLEDs()` — visualises movement outputs;
+- `publishTelemetry()` — builds and publishes JSON telemetry;
+- `mqttEnsureConnectedNonBlocking()` — retries MQTT connection without blocking the main control loop.
+
+---
+
+## Run the Simulation
+
+### Option 1 — Wokwi
+
+Open the referenced simulation:
+
+**https://wokwi.com/projects/451565989824641025**
+
+Use the slide switches to simulate directional obstacle detections and change the HC-SR04 distance to test front-obstacle behaviour.
+
+### Option 2 — Local Arduino workflow
+
+The firmware depends on:
+
+- ESP32 Arduino core;
+- `PubSubClient`.
+
+The required library is also listed in `libraries.txt`.
+
+---
+
+## Repository Structure
+
+```text
+.
+├── sketch.ino          # ESP32 firmware
+├── diagram.json        # Wokwi circuit layout
+├── libraries.txt       # Wokwi/Arduino library dependency
+├── wokwi-project.txt   # Source Wokwi project reference
+├── .gitignore
+└── README.md
+```
+
+---
+
+## What This Project Demonstrates
+
+- ESP32 firmware development;
+- ultrasonic sensing;
+- multi-direction obstacle logic;
+- finite-state control;
+- non-blocking timing with `millis()`;
+- Wi-Fi connectivity;
+- MQTT publish/subscribe concepts;
+- JSON IoT telemetry;
+- simulation-driven embedded-system testing.
+
+---
+
+## Limitations
+
+This is a simulation-focused prototype.
+
+Current limitations include:
+
+- motion is represented by LEDs rather than DC motors;
+- IR sensors are abstracted as manual slide switches;
+- no motor driver or drivetrain is modelled;
+- Wi-Fi setup blocks during the initial connection;
+- MQTT uses an unauthenticated public broker;
+- no TLS encryption;
+- no battery or power-management logic;
+- no camera, SLAM, or localisation.
+
+---
+
+## Possible Extensions
+
+- integrate physical DC motors and a motor driver;
+- replace switches with actual IR or ToF sensors;
+- add manual Bluetooth control;
+- add authenticated MQTT over TLS;
+- build a telemetry dashboard;
+- add persistent telemetry storage;
+- add local recovery strategies for trapped states;
+- extend from rule-based avoidance toward mapping / localisation.
+
+---
+
+## Simulation Provenance
+
+The repository includes an exported Wokwi `diagram.json`. Its embedded metadata currently lists **Nouhan Doumbouya** as the diagram author. That metadata has been preserved rather than rewritten.
+
+The firmware and repository are maintained here as part of **Leroy Nyasha Mangwarara's** technical portfolio.
+
+---
+
+## Maintainer
+
+**Leroy Nyasha Mangwarara**
+
+Computer Science · Data Science · Software Engineering · IoT
+
+[GitHub](https://github.com/Leroy-laboe) · [LinkedIn](https://www.linkedin.com/in/leroy-nyasha-mangwarara-86185a302/) · [Email](mailto:mangwararaleroy@gmail.com)
