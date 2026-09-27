@@ -226,7 +226,7 @@ The required library is also listed in `libraries.txt`.
 - finite-state control;
 - non-blocking timing with `millis()`;
 - Wi-Fi connectivity;
-- MQTT publish/subscribe concepts;
+- MQTT telemetry publishing;
 - JSON IoT telemetry;
 - simulation-driven embedded-system testing.
 
