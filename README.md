@@ -262,14 +262,6 @@ Current limitations include:
 
 ---
 
-## Simulation Provenance
-
-The repository includes an exported Wokwi `diagram.json`. Its embedded metadata currently lists **Nouhan Doumbouya** as the diagram author. That metadata has been preserved rather than rewritten.
-
-The firmware and repository are maintained here as part of **Leroy Nyasha Mangwarara's** technical portfolio.
-
----
-
 ## Maintainer
 
 **Leroy Nyasha Mangwarara**
